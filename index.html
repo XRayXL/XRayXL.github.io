@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="XRayXL is a flight recorder for the code running inside Excel. It records which XLL add-in and VBA functions actually ran, in what order, on which thread, with what arguments and how long each took.">
+<meta name="description" content="XRayXL is a flight recorder for the code running inside Excel. It records which XLL add-in and VBA functions actually ran, in what order, on which thread, with what arguments and how long each took, and shows it on a timeline.">
 <meta name="color-scheme" content="light dark">
 <link rel="canonical" href="https://xrayxl.com/">
 <meta property="og:type" content="website">
@@ -22,8 +22,8 @@
     --rule:#D3D8DE; --rule-strong:#B2BAC3;
     --signal:#C43C08; --signal-bright:#E8551C; --on-signal:#FFFFFF;
     --steel:#1B5A78;
-    --ok:#17693F; --warn:#8A5600; --bad:#A81E26;
     --grid-line:rgba(20,24,29,.055);
+    --shadow:0 14px 34px rgba(20,24,29,.16);
     --display:"Archivo",system-ui,sans-serif;
     --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono","Consolas",monospace;
@@ -37,8 +37,8 @@
       --rule:#29313A; --rule-strong:#3A444F;
       --signal:#FF6A2B; --signal-bright:#FF7F47; --on-signal:#160A04;
       --steel:#74B9DA;
-      --ok:#4FC98A; --warn:#E2A241; --bad:#FF7274;
       --grid-line:rgba(233,237,242,.05);
+      --shadow:0 14px 34px rgba(0,0,0,.5);
     }
   }
   :root[data-theme="dark"]{
@@ -47,12 +47,13 @@
     --rule:#29313A; --rule-strong:#3A444F;
     --signal:#FF6A2B; --signal-bright:#FF7F47; --on-signal:#160A04;
     --steel:#74B9DA;
-    --ok:#4FC98A; --warn:#E2A241; --bad:#FF7274;
     --grid-line:rgba(233,237,242,.05);
+    --shadow:0 14px 34px rgba(0,0,0,.5);
   }
 
   *{box-sizing:border-box}
   :root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px)}
+  html{scroll-padding-top:76px}
   body{
     margin:0; background:var(--ground); color:var(--ink);
     font-family:var(--body); font-size:16px; line-height:1.6;
@@ -79,6 +80,60 @@
 
   .lede{font-size:clamp(17px,1.9vw,19px); color:var(--ink-2); max-width:64ch}
 
+  /* ---------- the bar along the top, and its menu: the docs pages carry the same ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:20; border-bottom:1px solid var(--rule);
+    background-color:var(--ground);
+    background-image:
+      repeating-linear-gradient(to right, var(--grid-line) 0 1px, transparent 1px 88px),
+      repeating-linear-gradient(to bottom, var(--grid-line) 0 1px, transparent 1px 30px);
+  }
+  .topbar .wrap{display:flex; align-items:center; gap:14px; min-height:60px}
+  .brand{font-family:var(--display); font-weight:800; font-size:22px; letter-spacing:-.035em; line-height:1; color:var(--ink); text-decoration:none}
+  .brand:hover{color:var(--ink)}
+  .brand span{color:var(--signal)}
+  .armed{
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--signal); border:1px solid var(--signal); border-radius:2px;
+    padding:3px 10px; display:inline-flex; align-items:center; gap:8px; line-height:1.3;
+  }
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--signal); animation:blip 2.4s ease-in-out infinite; flex:none}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+  @media (max-width:520px){.armed{display:none}}
+  .topbar .get{margin-left:auto; padding:8px 16px; font-size:14px}
+  .menu{position:relative}
+  @media (max-width:380px){.topbar .get{display:none} .menu{margin-left:auto}}
+  .menu summary{
+    list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; min-height:38px;
+    padding:0 14px; background:var(--surface); border:1px solid var(--rule-strong); border-radius:3px;
+    font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .menu summary::-webkit-details-marker{display:none}
+  .menu summary:hover,.menu[open] summary{border-color:var(--signal); color:var(--signal)}
+  .bars,.bars::before,.bars::after{display:block; width:16px; height:2px; background:currentColor; transition:transform .15s, background-color .15s}
+  .bars{position:relative}
+  .bars::before,.bars::after{content:""; position:absolute; left:0}
+  .bars::before{transform:translateY(-5px)}
+  .bars::after{transform:translateY(5px)}
+  .menu[open] .bars{background:transparent}
+  .menu[open] .bars::before{transform:rotate(45deg)}
+  .menu[open] .bars::after{transform:rotate(-45deg)}
+  .menu-panel{
+    position:absolute; right:0; top:calc(100% + 8px); width:min(330px, calc(100vw - 32px));
+    max-height:calc(100vh - 84px); overflow-y:auto; padding:6px;
+    background:var(--surface); border:1px solid var(--rule-strong); border-radius:4px; box-shadow:var(--shadow);
+  }
+  .menu-head{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-3); padding:12px 12px 4px; border-top:1px solid var(--rule); margin-top:6px;
+  }
+  .menu-panel a{display:block; padding:7px 12px; border-radius:3px; text-decoration:none; color:var(--ink); font-size:14.5px; font-weight:600; line-height:1.35}
+  .menu-panel a small{display:block; font-size:12.5px; font-weight:400; color:var(--ink-3)}
+  .menu-panel a:hover{background:var(--surface-2); color:var(--signal)}
+  .menu-panel a[aria-current]{background:var(--surface-2); box-shadow:inset 3px 0 0 var(--signal)}
+  @media (prefers-reduced-motion:reduce){.bars,.bars::before,.bars::after{transition:none}}
+
   /* ---------- hero ---------- */
   .hero{
     border-top:none;
@@ -86,21 +141,7 @@
       repeating-linear-gradient(to right, var(--grid-line) 0 1px, transparent 1px 88px),
       repeating-linear-gradient(to bottom, var(--grid-line) 0 1px, transparent 1px 30px);
   }
-  .hero-inner{padding-block:clamp(40px,7vw,76px) clamp(36px,5vw,56px)}
-  .brandline{
-    display:flex; align-items:center; justify-content:flex-end;
-    gap:clamp(12px,1.7vw,20px); flex-wrap:wrap; margin-bottom:clamp(26px,4.6vw,44px);
-  }
-  .brand{font-family:var(--display); font-weight:800; font-size:clamp(28px,4.2vw,42px); letter-spacing:-.035em; line-height:1}
-  .brand span{color:var(--signal)}
-  .armed{
-    font-family:var(--mono); font-size:clamp(11px,1.05vw,12.5px); letter-spacing:.14em; text-transform:uppercase;
-    color:var(--signal); border:1px solid var(--signal); border-radius:2px;
-    padding:4px 11px; display:inline-flex; align-items:center; gap:8px; line-height:1.3;
-  }
-  .dot{width:7px; height:7px; border-radius:50%; background:var(--signal); animation:blip 2.4s ease-in-out infinite; flex:none}
-  @keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
-  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+  .hero-inner{padding-block:clamp(40px,7vw,80px) clamp(36px,5vw,56px)}
 
   h1{font-size:clamp(34px,6.2vw,66px); font-weight:800; letter-spacing:-.035em; max-width:17ch}
   h1 em{font-style:normal; color:var(--signal)}
@@ -108,6 +149,7 @@
   .hero p.second{margin-top:14px; max-width:60ch; color:var(--ink-2)}
 
   .cta{display:flex; flex-wrap:wrap; gap:12px; margin-top:32px}
+  .more{display:flex; flex-wrap:wrap; gap:12px; margin-top:28px}
   .btn{
     font-family:var(--body); font-weight:600; font-size:15px; text-decoration:none;
     padding:11px 20px; border-radius:3px; border:1px solid transparent; display:inline-block;
@@ -146,10 +188,12 @@
   .read{
     margin-top:26px; padding:18px 20px; background:var(--surface); border:1px solid var(--rule);
     border-left:3px solid var(--signal); border-radius:3px; max-width:78ch;
+    display:flex; flex-direction:column; gap:10px;
   }
   .read strong{font-weight:600}
+  .read .more{margin-top:8px}
 
-  /* ---------- feature grid ---------- */
+  /* ---------- feature grid; in the docs grid each cell is a link ---------- */
   .grid{display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
   .grid-3{grid-template-columns:repeat(3,1fr)}
   .cell{background:var(--surface); padding:22px 22px 24px}
@@ -161,95 +205,20 @@
   }
   @media (max-width:860px){.grid-3{grid-template-columns:repeat(2,1fr)}}
   @media (max-width:560px){.grid-3{grid-template-columns:1fr}}
+  a.cell{display:flex; flex-direction:column; text-decoration:none; color:var(--ink); transition:background-color .15s}
+  a.cell:hover{background:var(--surface-2); color:var(--ink)}
+  a.cell:hover h3,a.cell:hover .go{color:var(--signal)}
+  a.cell h3{font-size:18px; font-weight:700}
+  .go{margin-top:auto; padding-top:14px; font-size:14px; font-weight:600; color:var(--steel)}
 
-  /* ---------- decoded values ---------- */
-  .vals{display:flex; flex-direction:column; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
-  .val{background:var(--surface); padding:16px 20px; display:grid; grid-template-columns:minmax(0,46%) 1fr; gap:6px 26px; align-items:start}
-  @media (max-width:820px){.val{grid-template-columns:1fr; gap:8px}}
-  .val code{
-    font-family:var(--mono); font-size:12.5px; line-height:1.55; color:var(--ink);
-    overflow-wrap:anywhere; display:block;
-  }
-  .val span{font-size:14px; color:var(--ink-2); line-height:1.55}
-  .val span .i{font-size:.94em}
-
-  /* ---------- two tracers ---------- */
-  .tracers{display:grid; grid-template-columns:1fr 1fr; gap:clamp(20px,3vw,32px)}
-  @media (max-width:760px){.tracers{grid-template-columns:1fr}}
-  .tracer{background:var(--surface); border:1px solid var(--rule); border-radius:3px; padding:26px}
-  .tracer .badge{
-    font-family:var(--mono); font-weight:600; font-size:11px; letter-spacing:.14em;
-    color:var(--on-signal); background:var(--signal); padding:3px 9px; border-radius:2px; display:inline-block;
-  }
-  .tracer h3{font-size:20px; margin:16px 0 10px}
-  .tracer p{font-size:14.5px; color:var(--ink-2); margin-bottom:12px}
-  .tracer p:last-child{margin-bottom:0}
-  .tracer em{font-style:italic; color:var(--ink)}
-
-  /* ---------- error chain ---------- */
-  .chain{font-family:var(--mono); font-size:13px; background:var(--surface); border:1px solid var(--rule); border-radius:3px 3px 0 0; overflow-x:auto}
-  .chain .row{display:flex; align-items:center; gap:14px; padding:8px 18px; border-bottom:1px solid var(--rule); white-space:nowrap; min-width:520px}
-  .chain .ev{color:var(--ink-3); width:46px; flex:none}
-  .chain .nm{color:var(--ink); font-weight:500; width:96px; flex:none}
-  .chain .dep{color:var(--ink-3); font-size:12px}
-  .chain .tk{color:var(--ink-3); font-size:12px; margin-left:auto; padding-left:24px}
-  .chip{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; padding:1px 7px; border-radius:2px; font-weight:600}
-  .chip.threw{color:var(--bad); border:1px solid var(--bad)}
-  .chip.unwound{color:var(--warn); border:1px solid var(--warn)}
-  .chip.handled{color:var(--ok); border:1px solid var(--ok)}
-  .indent1{padding-left:40px} .indent2{padding-left:62px}
-  .defs{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:0 0 3px 3px; overflow:hidden}
-  .defs > div{background:var(--surface); padding:16px 18px; font-size:14px; color:var(--ink-2)}
-  .defs b{font-family:var(--mono); font-size:12.5px; display:block; margin-bottom:4px}
-  .defs .threw b{color:var(--bad)} .defs .unwound b{color:var(--warn)} .defs .handled b{color:var(--ok)}
-  @media (max-width:640px){.defs{grid-template-columns:1fr}}
-
-  /* ---------- scope ---------- */
-  .scope{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
-  @media (max-width:700px){.scope{grid-template-columns:1fr}}
-  .scope > div{background:var(--surface); padding:24px}
-  .scope h3{font-size:15px; font-weight:600; margin-bottom:14px}
-  .mark{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase}
-  .in .mark{color:var(--ok)} .out .mark{color:var(--ink-3)}
-  .scope ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px}
-  .scope li{font-size:14.5px; color:var(--ink-2); padding-left:18px; position:relative; line-height:1.5}
-  .scope li::before{content:""; position:absolute; left:0; top:.66em; width:8px; height:1px; background:var(--rule-strong)}
-  .scope code{font-family:var(--mono); font-size:.9em; color:var(--ink)}
-
-  /* ---------- caveats ---------- */
-  .caveats{display:flex; flex-direction:column; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
-  .caveat{background:var(--surface); padding:18px 22px; display:grid; grid-template-columns:minmax(160px,230px) 1fr; gap:6px 28px; align-items:start}
-  @media (max-width:680px){.caveat{grid-template-columns:1fr; gap:6px}}
-  .caveat b{font-size:14.5px; font-weight:600; color:var(--ink)}
-  .caveat span.txt{font-size:14.5px; color:var(--ink-2)}
-
-  /* ---------- steps ---------- */
-  .steps{counter-reset:step; display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
-  @media (max-width:760px){.steps{grid-template-columns:1fr}}
-  .step{background:var(--surface); padding:24px; counter-increment:step}
-  .step::before{
-    content:counter(step,decimal-leading-zero);
-    font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--signal);
-    display:block; margin-bottom:12px;
-  }
-  .step h3{font-size:16px; font-weight:600; margin-bottom:8px}
-  .step p{font-size:14.5px; color:var(--ink-2)}
-  /* ---------- screenshots ---------- */
-  .figs{display:flex; flex-direction:column; gap:clamp(24px,3.4vw,38px); margin-top:26px}
-  .figs figure{margin:0}
-  .figs img{display:block; width:100%; height:auto}
-  /* the dialog is cropped to its own rounded outline, so it gets a ring, not a box */
-  .fig-split img{border-radius:8px; box-shadow:0 0 0 1px var(--rule-strong)}
-  .figs figcaption{font-size:13.5px; color:var(--ink-2); line-height:1.6; display:flex; flex-direction:column; gap:10px}
-  .figs figcaption b{color:var(--ink); font-weight:600}
-  /* the ribbon strip is ~7:1 — it scrolls rather than shrinking to nothing on a phone */
-  .fig-wide .frame{overflow-x:auto; border:1px solid var(--rule-strong); border-radius:3px; background:#FFFFFF}
-  .fig-wide .frame img{min-width:720px}
-  .fig-wide figcaption{margin-top:14px; max-width:80ch}
-  .fig-split{display:grid; grid-template-columns:1.45fr 1fr; gap:clamp(18px,2.8vw,32px); align-items:start}
-  @media (max-width:760px){.fig-split{grid-template-columns:1fr}}
-  .paths{font-family:var(--mono); font-size:12.5px; color:var(--ink-3); margin-top:18px; overflow-x:auto}
-  .paths div{white-space:nowrap}
+  /* ---------- screenshots: Excel and Perfetto are light whatever the page is ---------- */
+  .pair{display:grid; grid-template-columns:1fr 1fr; gap:clamp(18px,2.8vw,32px); align-items:start}
+  @media (max-width:760px){.pair{grid-template-columns:1fr}}
+  .pair figure{margin:0}
+  .pair img{display:block; width:100%; height:auto}
+  .shot{border:1px solid var(--rule-strong); border-radius:3px; background:#FFFFFF; overflow:hidden}
+  .pair figcaption{margin-top:14px; font-size:13.5px; color:var(--ink-2); line-height:1.6}
+  .pair figcaption b{color:var(--ink); font-weight:600}
 
   /* ---------- footer ---------- */
   footer{border-top:1px solid var(--rule); background:var(--surface)}
@@ -263,22 +232,42 @@
 </head>
 <body>
 
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html">XRay<span>XL</span></a>
+    <span class="armed"><span class="dot"></span>Armed</span>
+    <a class="btn btn-primary get" href="https://github.com/XRayXL/XRayXL-AddIn/releases/download/v0.4.0/XRayXL-0.4.0.zip">Download</a>
+    <details class="menu">
+      <summary><span class="bars" aria-hidden="true"></span>Menu</summary>
+      <nav class="menu-panel" aria-label="Pages">
+        <a href="index.html" aria-current="page">Home<small>xrayxl.com</small></a>
+        <div class="menu-head">Guides</div>
+        <a href="docs/README.html">Start<small>What XRayXL is, and getting it running</small></a>
+        <a href="docs/DemoWalkthrough.html">Walkthrough<small>Ten demo workbooks, a feature at a time</small></a>
+        <a href="docs/TraceOptions.html">Trace options<small>Every capture setting, and the log</small></a>
+        <a href="docs/TraceRowModel.html">Trace rows<small>The trace file, column by column</small></a>
+        <a href="docs/ErrorsInTheTrace.html">Errors<small>How an error reads in a trace</small></a>
+        <a href="docs/VBATracing.html">VBA tracing<small>How the VBA tracer works, in layers</small></a>
+        <div class="menu-head">Get it</div>
+        <a href="https://github.com/XRayXL/XRayXL-AddIn/releases/download/v0.4.0/XRayXL-0.4.0.zip">Download<small>XRayXL-0.4.0.zip</small></a>
+        <a href="https://github.com/XRayXL/XRayXL-AddIn">View on GitHub<small>The source, and every release</small></a>
+      </nav>
+    </details>
+  </div>
+</header>
+
 <section class="hero">
   <div class="wrap hero-inner">
-    <div class="brandline">
-      <span class="brand">XRay<span>XL</span></span>
-      <span class="armed"><span class="dot"></span>Armed</span>
-    </div>
-
     <h1>A flight recorder for the code running inside <em>Excel</em>.</h1>
 
     <p class="lede">When a spreadsheet is slow, freezes, or crashes, XRayXL tells you which XLL add-in and VBA functions actually ran — in what order, on which thread, triggered by which cell or button, with what arguments, returning what, how long each took, which functions threw errors and which handled them.</p>
 
-    <p class="second">It changes nothing about your workbook: no cells touched, no macros added, no VBA source read. You arm it, recalculate or run your macros, then read the trace file to see what really happened.</p>
+    <p class="second">It changes nothing about your workbook: no cells touched, no macros added, no VBA source read. You arm it, recalculate or run your macros, then read what really happened — as a file, or on a timeline in your browser.</p>
 
     <div class="cta">
-      <a class="btn btn-primary" href="https://github.com/XRayXL/XRayXL-AddIn">View on GitHub</a>
-      <a class="btn btn-ghost" href="https://github.com/XRayXL/XRayXL-AddIn/releases/latest">Download the add-in</a>
+      <a class="btn btn-primary" href="https://github.com/XRayXL/XRayXL-AddIn/releases/download/v0.4.0/XRayXL-0.4.0.zip">Download the add-in</a>
+      <a class="btn btn-ghost" href="docs/README.html">Read the docs</a>
+      <a class="btn btn-ghost" href="https://github.com/XRayXL/XRayXL-AddIn">View on GitHub</a>
     </div>
 
     <div class="facts">
@@ -301,23 +290,28 @@
           <tr><th>seq</th><th>kind</th><th>source</th><th>module</th><th>function</th><th>caller</th><th>callerref</th><th>args</th><th>ret</th><th>outcome</th><th>ticks</th></tr>
         </thead>
         <tbody>
-          <tr><td class="seq">1</td><td><span class="kind entry">entry</span></td><td class="src">VBA</td><td>[OneTimeline_39248.xlsm]Probe</td><td class="fn">VbaOuter</td><td>cell</td><td>Sheet1!A3</td><td>a1:Double=3</td><td></td><td></td><td></td></tr>
-          <tr><td class="seq">2</td><td><span class="kind entry">entry</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td>cell</td><td>Sheet1!A3</td><td>a1:E=3</td><td></td><td></td><td></td></tr>
-          <tr><td class="seq">3</td><td><span class="kind">exit</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td></td><td></td><td></td><td class="num">3</td><td>returned</td><td class="num">113</td></tr>
-          <tr><td class="seq">4</td><td><span class="kind">exit</span></td><td class="src">VBA</td><td>[OneTimeline_39248.xlsm]Probe</td><td class="fn">VbaOuter</td><td></td><td></td><td></td><td class="num">4</td><td>returned</td><td class="num">2766</td></tr>
-          <tr><td class="seq">5</td><td><span class="kind entry">entry</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td>cell</td><td>Sheet1!A4</td><td>a1:E=4.5</td><td></td><td></td><td></td></tr>
-          <tr><td class="seq">6</td><td><span class="kind">exit</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td></td><td></td><td></td><td class="num">4.5</td><td>returned</td><td class="num">116</td></tr>
-          <tr><td class="seq">7</td><td><span class="kind entry">entry</span></td><td class="src">VBA</td><td>[OneTimeline_39248.xlsm]Probe</td><td class="fn">VbaPlain</td><td>cell</td><td>Sheet1!A2</td><td>a1:Double=2</td><td></td><td></td><td></td></tr>
-          <tr><td class="seq">8</td><td><span class="kind">exit</span></td><td class="src">VBA</td><td>[OneTimeline_39248.xlsm]Probe</td><td class="fn">VbaPlain</td><td></td><td></td><td></td><td class="num">6</td><td>returned</td><td class="num">181</td></tr>
-          <tr><td class="seq">9</td><td><span class="kind entry">entry</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td>cell</td><td>Sheet1!A1</td><td>a1:E=1.5</td><td></td><td></td><td></td></tr>
-          <tr><td class="seq">10</td><td><span class="kind">exit</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td></td><td></td><td></td><td class="num">1.5</td><td>returned</td><td class="num">159</td></tr>
+          <tr><td class="seq">1</td><td><span class="kind entry">entry</span></td><td class="src">VBA</td><td>[OneTimeline_8276.xlsm]Probe</td><td class="fn">VbaOuter</td><td>cell</td><td>[OneTimeline_8276.xlsm]Sheet1!A3</td><td>a1:Double=3</td><td></td><td></td><td></td></tr>
+          <tr><td class="seq">2</td><td><span class="kind entry">entry</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td>cell</td><td>[OneTimeline_8276.xlsm]Sheet1!A3</td><td>a1:E=3</td><td></td><td></td><td></td></tr>
+          <tr><td class="seq">3</td><td><span class="kind">exit</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td></td><td></td><td></td><td class="num">3</td><td>returned</td><td class="num">272</td></tr>
+          <tr><td class="seq">4</td><td><span class="kind">exit</span></td><td class="src">VBA</td><td>[OneTimeline_8276.xlsm]Probe</td><td class="fn">VbaOuter</td><td></td><td></td><td></td><td class="num">4</td><td>returned</td><td class="num">4096</td></tr>
+          <tr><td class="seq">5</td><td><span class="kind entry">entry</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td>cell</td><td>[OneTimeline_8276.xlsm]Sheet1!A4</td><td>a1:E=4.5</td><td></td><td></td><td></td></tr>
+          <tr><td class="seq">6</td><td><span class="kind">exit</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td></td><td></td><td></td><td class="num">4.5</td><td>returned</td><td class="num">216</td></tr>
+          <tr><td class="seq">7</td><td><span class="kind entry">entry</span></td><td class="src">VBA</td><td>[OneTimeline_8276.xlsm]Probe</td><td class="fn">VbaPlain</td><td>cell</td><td>[OneTimeline_8276.xlsm]Sheet1!A2</td><td>a1:Double=2</td><td></td><td></td><td></td></tr>
+          <tr><td class="seq">8</td><td><span class="kind">exit</span></td><td class="src">VBA</td><td>[OneTimeline_8276.xlsm]Probe</td><td class="fn">VbaPlain</td><td></td><td></td><td></td><td class="num">6</td><td>returned</td><td class="num">410</td></tr>
+          <tr><td class="seq">9</td><td><span class="kind entry">entry</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td>cell</td><td>[OneTimeline_8276.xlsm]Sheet1!A1</td><td>a1:E=1.5</td><td></td><td></td><td></td></tr>
+          <tr><td class="seq">10</td><td><span class="kind">exit</span></td><td class="src">XLL</td><td>TracedAddin64.xll</td><td class="fn">TxE</td><td></td><td></td><td></td><td class="num">1.5</td><td>returned</td><td class="num">167</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="hint">Abridged for width. The file is a plain CSV of 22 columns, and also carries <code>input</code>, <code>span</code>, <code>parent</code>, <code>depth</code>, <code>thread</code>, <code>qpc</code>, <code>proc</code>, <code>typetext</code>, <code>argcount</code>, <code>rettype</code> and <code>trust</code>.</p>
+    <p class="hint">Abridged for width. The file is a plain CSV of 23 columns, or JSON Lines if you ask for it, and also carries <code>input</code>, <code>span</code>, <code>parent</code>, <code>depth</code>, <code>thread</code>, <code>qpc</code>, <code>proc</code>, <code>typetext</code>, <code>argcount</code>, <code>rettype</code>, <code>tracerticks</code> and <code>trust</code>.</p>
 
     <div class="read">
-      <p><strong>Read row 1 as:</strong> the VBA function <span class="i">VbaOuter</span>, in module <span class="i">Probe</span> of <span class="i">OneTimeline_39248.xlsm</span>, called from <span class="i">Sheet1!A3</span>, declared <span class="i">Double</span>, given <span class="i">3</span>. The <span class="i">callerref</span> is the same address Excel's own <span class="i">Range.Address(,,,True)</span> gives — paste it straight back into a formula.</p>
+      <p><strong>Read row 1 as:</strong> the VBA function <span class="i">VbaOuter</span>, in module <span class="i">Probe</span> of <span class="i">OneTimeline_8276.xlsm</span>, called from <span class="i">Sheet1!A3</span>, declared <span class="i">Double</span>, given <span class="i">3</span>. The <span class="i">callerref</span> is the same address Excel's own <span class="i">Range.Address(,,,True)</span> gives — paste it straight back into a formula.</p>
+      <p><strong>Row 4 closes it:</strong> returned <span class="i">4</span> after 4096 ticks, 1151 of them the tracer's own (<span class="i">tracerticks</span>), so the function itself took 2945.</p>
+    </div>
+
+    <div class="more">
+      <a class="btn btn-ghost" href="docs/TraceRowModel.html#columns">Every column, explained &rarr;</a>
     </div>
   </div>
 </section>
@@ -328,100 +322,35 @@
     <div class="grid grid-3">
       <div class="cell"><span class="tag">order</span><h3>The real sequence</h3><p>Every entry and exit in the order Excel actually ran them — not the order the sheet is laid out in, and not the order you assumed.</p></div>
       <div class="cell"><span class="tag">attribution</span><h3>Who called it</h3><p>The cell, button or event that started the chain, as a reference you can paste back into a formula. Multi-threaded recalculation is recorded per thread.</p></div>
-      <div class="cell"><span class="tag">values</span><h3>Arguments and returns</h3><p>What went in and what came back, with declared types — so a wrong answer leads to the call that produced it, not just the cell showing it.</p></div>
-      <div class="cell"><span class="tag">duration</span><h3>Cost per call</h3><p>Ticks from a high-resolution counter on every exit. Nested and recursive calls each carry their own, so the expensive one is the one that reads expensive.</p></div>
+      <div class="cell"><span class="tag">values</span><h3>Arguments and returns</h3><p>What went in and what came back, with their types — so a wrong answer leads to the call that produced it, not just the cell showing it.</p></div>
+      <div class="cell"><span class="tag">duration</span><h3>Cost per call</h3><p>Ticks from a high-resolution counter on every exit, and how many of them were the tracer's own. Nested and recursive calls each carry their own, so the expensive one is the one that reads expensive.</p></div>
       <div class="cell"><span class="tag">structure</span><h3>Depth and nesting</h3><p>A per-thread shadow stack supplies depth and parent, so a flat file reconstructs into a call tree.</p></div>
       <div class="cell"><span class="tag">outcome</span><h3>Errors, in full</h3><p>Which procedure raised, which ones the error passed through, and which one finally caught it.</p></div>
     </div>
+    <p class="hint">It follows XLL add-in and VBA code — macros, buttons and event handlers included — not Excel's own built-in functions, COM or RTD add-ins, or JavaScript custom functions.</p>
   </div>
 </section>
 
 <section>
   <div class="wrap band">
-    <div class="eyebrow">VBA parameters, going in and coming back</div>
-    <p class="lede" style="margin-bottom:26px">Every VBA call records what it was actually given, decoded and typed — not a rendering of what the source says it takes. A <span class="i">Variant</span> is reported by what it holds; an array carries its real bounds; an object is named by its class.</p>
+    <div class="eyebrow">The same trace, on a timeline</div>
+    <p class="lede" style="margin-bottom:28px">After <strong>Disarm</strong>, the <strong>Perfetto</strong> button opens the trace in Perfetto UI, an open-source trace viewer, in your browser. Each thread is a track, each call a slice nested under the call that made it, and Excel's events are markers. Click a slice for its arguments, its result, how long it took and how much of that was XRayXL's own.</p>
 
-    <div class="vals">
-      <div class="val"><code>a1:String="GBP-SONIA"</code><span>The declared type, where VBA's metadata names one. Strings are quoted and escaped, so the value survives the CSV field intact.</span></div>
-      <div class="val"><code>a1:Variant=Integer(42)</code><span>A <span class="i">Variant</span> names the type it is holding. A Double is written bare; everything else is named.</span></div>
-      <div class="val"><code>a1:Variant=Variant[1..2,1..2]{{1,"x"},{2,TRUE}}</code><span>An array keeps its real bounds and nests rows first, mixed element types and all.</span></div>
-      <div class="val"><code>a1:Variant=Range@0x000001E2…('[Book1]Sheet1'!A1:C2)=Variant[1..2,1..3]{{11,12,13},{21,22,23}}</code><span>An object is named by its class and its address is kept, so one object can be followed from row to row. A <span class="i">Range</span> is addressed and its contents read.</span></div>
-      <div class="val"><code>a1:Variant=#DIV/0!</code><span>A worksheet error is spelt the way Excel spells it, so a bad value can be matched to the cell showing it.</span></div>
-      <div class="val"><code>a2:Variant=Missing</code><span>An omitted optional argument is recorded as omitted, rather than as whatever was left in the slot.</span></div>
+    <div class="pair">
+      <figure>
+        <div class="shot"><img src="docs/images/Plasma.png" width="1361" height="876" loading="lazy" alt="Demo 10 after the show: a plasma painted across a canvas of cells, the countdown at 0, and the status line saying act 1 drew 4 frames and act 2 drew 287."></div>
+        <figcaption><b>Demo 10: a plasma, painted two ways.</b> The same VBA maths drawn twice, ten seconds each: act 1 makes one call to Excel per cell, act 2 one call for the whole canvas. Act 1 drew 4 frames; act 2 drew 287.</figcaption>
+      </figure>
+      <figure>
+        <div class="shot"><img src="docs/images/Perfetto.png" width="1127" height="847" loading="lazy" alt="Demo 10's trace in Perfetto UI: StartShow over two RunAct slices, act 1's wide frames and act 2's thin ones, with part of act 1 selected and its calls summed by name below."></div>
+        <figcaption><b>Its trace in Perfetto.</b> With 1.75 seconds of act 1 selected, the pivot table sums it by name: 3,002 <span class="i">SetPixel</span> calls took 1.5 seconds between them, and the colour maths inside them 72 milliseconds. The rest is Excel colouring cells.</figcaption>
+      </figure>
     </div>
-    <p class="hint">The number is the frame <em>slot</em>, not the parameter ordinal — a <span class="i">ByVal Variant</span> occupies three, so the parameter after one reads <code>a4</code>, while <code>argcount</code> still counts arguments.</p>
+    <p class="hint">The trace is converted on your machine, by a page that ships beside the add-in, so nothing is uploaded.</p>
 
-    <div class="grid grid-3" style="margin-top:30px">
-      <div class="cell"><span class="tag">timing</span><h3>Read before the body runs</h3><p>When a frame opens, the arguments are still sitting in the interpreter's working memory. XRayXL reads them there — before the procedure's first statement has a chance to overwrite them.</p></div>
-      <div class="cell"><span class="tag">byref</span><h3>Re-read on the way out</h3><p>A by-reference parameter is noted at the entry and read again at the exit, and the exit row carries it <em>only if it changed</em>. A row with arguments on it is saying "these moved".</p></div>
-      <div class="cell"><span class="tag">byval</span><h3>ByVal is never reported at an exit</h3><p>The callee's copy may well differ by then, but the caller never sees it. An "after" value would assert an effect that does not exist, so none is written.</p></div>
-    </div>
-    <p class="hint">Where VBA's metadata does not name a type, a <code>?</code> marks the spot rather than a guess, and a slot that decodes to nothing truthful is written out as its raw bytes — never a coerced value.</p>
-  </div>
-</section>
-
-<section>
-  <div class="wrap band">
-    <div class="eyebrow">An error, read outwards from the throw</div>
-    <div class="chain">
-      <div class="row"><span class="ev">entry</span><span class="nm">E_Outer</span><span class="dep">depth 1 · parent 0</span></div>
-      <div class="row indent1"><span class="ev">entry</span><span class="nm">E_Middle</span><span class="dep">depth 2 · parent 1</span></div>
-      <div class="row indent2"><span class="ev">entry</span><span class="nm">E_Thrower</span><span class="dep">depth 3 · parent 2</span></div>
-      <div class="row indent2"><span class="ev">exit</span><span class="nm">E_Thrower</span><span class="chip threw">threw</span><span class="tk">4657 ticks</span></div>
-      <div class="row indent1"><span class="ev">exit</span><span class="nm">E_Middle</span><span class="chip unwound">unwound</span><span class="tk">6585 ticks</span></div>
-      <div class="row"><span class="ev">exit</span><span class="nm">E_Outer</span><span class="chip handled">handled</span><span class="tk">10111 ticks</span></div>
-    </div>
-    <div class="defs">
-      <div class="threw"><b>threw</b>The procedure that raised the error.</div>
-      <div class="unwound"><b>unwound</b>The error passed through it — it ran nothing after the raise, so it did not handle it.</div>
-      <div class="handled"><b>handled</b>The one that caught it. Everything else reads <span class="i">returned</span>.</div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap band">
-    <div class="eyebrow">How it works — two tracers, one output</div>
-    <div class="tracers">
-      <div class="tracer">
-        <span class="badge">XLL</span>
-        <h3>Add-in functions</h3>
-        <p>Excel's registration table names every registered add-in function and its address — a documented API. XRayXL wraps each one with an inline detour that records the entry, calls the original, and records the exit.</p>
-        <p>Functions registered after arming are picked up by watching Excel's registration callback. Nothing is derived; nothing is guessed.</p>
-      </div>
-      <div class="tracer">
-        <span class="badge">VBA</span>
-        <h3>VBA procedures</h3>
-        <p>The VBA interpreter reaches every opcode handler through one table of function pointers inside <span class="i">VBE7.DLL</span>. XRayXL finds that table by its <em>shape</em> — not by a byte signature — and swaps a handful of entries for its own.</p>
-        <p>So it sees each procedure start and stop without touching a byte of code. The calling cell comes from asking Excel.</p>
-      </div>
-    </div>
-    <p class="hint" style="margin-top:20px">Because the interpreter hook is global, VBA outside the calculation engine is traced too — macros, buttons and event handlers.</p>
-  </div>
-</section>
-
-<section>
-  <div class="wrap band">
-    <div class="eyebrow">Scope, stated plainly</div>
-    <div class="scope">
-      <div class="in">
-        <h3><span class="mark">Traced</span></h3>
-        <ul>
-          <li>XLL functions from any add-in, including ones registered after arming</li>
-          <li>VBA procedures — nested, recursive, and across threads</li>
-          <li>VBA outside the calculation engine: macros, buttons, event handlers</li>
-          <li>Errors: where they were thrown, what they unwound through, who caught them</li>
-        </ul>
-      </div>
-      <div class="out">
-        <h3><span class="mark">Not traced</span></h3>
-        <ul>
-          <li>Excel's own built-in functions — <code>SUM</code>, <code>XLOOKUP</code> and the rest. XRayXL follows add-in and VBA code, not the calculation engine's internals</li>
-          <li>COM and RTD add-ins. <code>=RTD(...)</code> is a COM mechanism rather than the XLL C API</li>
-          <li>JavaScript custom functions from Office Add-ins, which run in their own runtime rather than as XLL exports or VBA p-code</li>
-          <li>Asynchronous XLL functions are marked in the trace but carry no duration — they return before their answer exists</li>
-        </ul>
-      </div>
+    <div class="more">
+      <a class="btn btn-ghost" href="docs/DemoWalkthrough.html#on-a-timeline">Reading a trace on a timeline &rarr;</a>
+      <a class="btn btn-ghost" href="docs/DemoWalkthrough.html#10--a-plasma-painted-two-ways">Demo 10, in the walkthrough &rarr;</a>
     </div>
   </div>
 </section>
@@ -429,56 +358,26 @@
 <section>
   <div class="wrap band">
     <div class="eyebrow">Before you run it</div>
-    <p class="lede" style="margin-bottom:24px">Honest caveats, in roughly the order they will matter to you.</p>
-    <div class="caveats">
-      <div class="caveat"><b>It hooks Excel's internals</b><span class="txt">It patches function entry points in a live Excel process, using undocumented details Microsoft can change in any update. Every hook is fault-guarded and the VBA hooks stand down after repeated faults — but the blast radius of a bug is somebody's Excel.</span></div>
-      <div class="caveat"><b>Antivirus and EDR will plausibly notice</b><span class="txt">Inline hooking of <span class="i">excel.exe</span> is malware-shaped behaviour. On a managed or corporate machine, expect a conversation with whoever owns security before it runs at all.</span></div>
-      <div class="caveat"><b>Check it against your licence terms</b><span class="txt">Instrumenting Office internals may sit in tension with the Office licence. If in doubt, ask legal or compliance before running it.</span></div>
-      <div class="caveat"><b>The trace file contains your data</b><span class="txt">Argument values, return values, cell references and function names all land in it, in the clear. It is a plain file in <span class="i">%TEMP%</span> — treat it as sensitive as the spreadsheet itself.</span></div>
-      <div class="caveat"><b>64-bit Excel only</b><span class="txt">The two hooking thunks are hand-written x64 assembly, and the argument and return-value decoders read the x64 calling convention directly. 32-bit is a port and a re-measurement, not a build flag.</span></div>
-      <div class="caveat"><b>Durability across Excel updates is unproven</b><span class="txt">Nothing is hardcoded — every address is derived at runtime, which is designed to survive an update. If one breaks, the add-in refuses to arm and says so, rather than producing a wrong trace.</span></div>
-      <div class="caveat"><b>It leaves nothing behind</b><span class="txt">Ribbon controls can only be served to a COM add-in, so XRayXL writes three registry entries under <span class="i">HKEY_CURRENT_USER</span>, connects itself, and deletes all three immediately.</span></div>
+    <div class="read">
+      <p><strong>XRayXL hooks into Excel's internals.</strong> It patches a live Excel process, using details Microsoft can change in any update. It runs on 64-bit Excel only, antivirus and EDR may well notice it, and the trace file holds your workbook's data in the clear. Read the caveats before running it, especially on a machine someone else manages.</p>
+      <div class="more">
+        <a class="btn btn-ghost" href="docs/README.html#before-you-run-it">The caveats in full &rarr;</a>
+      </div>
     </div>
   </div>
 </section>
 
-<section>
+<section id="docs">
   <div class="wrap band">
-    <div class="eyebrow">Getting started</div>
-    <div class="steps">
-      <div class="step">
-        <h3>Download it</h3>
-        <p>No build required. <span class="i">dist/</span> is committed, so the latest release — or a plain clone — already contains a working tool, plus two demo add-ins and a guided tour in nine workbooks.</p>
-      </div>
-      <div class="step">
-        <h3>Point Excel at it</h3>
-        <p>Drag <span class="i">XRayXL64.xll</span> onto an open Excel window for that session, or add it permanently through File → Options → Add-ins. An <strong>XRayXL</strong> group appears on the Developer tab.</p>
-      </div>
-      <div class="step">
-        <h3>Arm, run, disarm</h3>
-        <p>Press <strong>Arm</strong>, recalculate or run your macros, press <strong>Disarm</strong>. Each button is also a registered command, so a session can be driven from VBA or any automation client with no window and no focus.</p>
-      </div>
-    </div>
-
-    <div class="figs">
-      <figure class="fig-wide">
-        <div class="frame"><img src="assets/ribbon.png" width="1825" height="244" alt="Excel's Developer tab, with an XRayXL group added at the far right holding three buttons: Arm, Disarm and Options. Disarm is greyed out because no session is running."></div>
-        <figcaption><b>The XRayXL group, at the far right of the Developer tab.</b> <span>Three buttons — Arm, Disarm, Options — and <em>Disarm</em> stays greyed until a session is running. Excel hides the Developer tab by default, and the group appears once a workbook is open rather than on the start screen.</span></figcaption>
-      </figure>
-      <figure class="fig-split">
-        <img src="assets/options.png" width="671" height="466" loading="lazy" alt="The XRayXL Options dialog, open on its Capture page. XLL add-in functions and VBA procedures each have a Depth dropdown set to All calls, with tickboxes for capturing argument values and return values, and for VBA a further tickbox for describing Range, Worksheet and Workbook objects.">
-        <figcaption><b>Options → Capture.</b> Each source carries its own depth — every call, or only the one Excel called directly — and its own switches for argument values, return values and object description.<span>Everything is on by default, and the defaults suit most sessions. Drop argument or object capture when you want tighter timings.</span><span>The settings are read once, at arm, so they grey out until you disarm.</span></figcaption>
-      </figure>
-    </div>
-
-    <div class="paths">
-      <div>trace → %TEMP%\XRayXL\TraceFiles\XRayXL_Trace_&lt;id&gt;_&lt;pid&gt;.csv</div>
-      <div>log&nbsp;&nbsp;&nbsp;→ %TEMP%\XRayXL\Logs\XRayXL_&lt;pid&gt;.log</div>
-    </div>
-
-    <div class="cta">
-      <a class="btn btn-primary" href="https://github.com/XRayXL/XRayXL-AddIn">Read the docs on GitHub</a>
-      <a class="btn btn-ghost" href="https://github.com/XRayXL/XRayXL-AddIn/releases/latest">Latest release</a>
+    <div class="eyebrow">The docs — the same pages the download carries</div>
+    <p class="lede" style="margin-bottom:26px">Everything that comes with XRayXL, to read before you download anything.</p>
+    <div class="grid grid-3">
+      <a class="cell" href="docs/README.html"><span class="tag">start here</span><h3>Start</h3><p>What XRayXL records and how, a real trace read row by row, getting it into Excel, the Diagnostics window, and the caveats in full.</p><span class="go">Read &rarr;</span></a>
+      <a class="cell" href="docs/DemoWalkthrough.html"><span class="tag">guided tour</span><h3>Walkthrough</h3><p>Ten demo workbooks, a feature at a time — values, callers, errors, a real VBA model, objects, the call tree, threads, an XLL option book and the plasma — with rows from a real run.</p><span class="go">Read &rarr;</span></a>
+      <a class="cell" href="docs/TraceOptions.html"><span class="tag">settings</span><h3>Trace options</h3><p>Every capture setting: what it costs, when it can change, and how to drive it from VBA. And the add-in's own log.</p><span class="go">Read &rarr;</span></a>
+      <a class="cell" href="docs/TraceRowModel.html"><span class="tag">reference</span><h3>Trace rows</h3><p>The trace file's contract, column by column: kinds, spans and depth, the value grammar, objects, quoting, and what a reader may rely on.</p><span class="go">Read &rarr;</span></a>
+      <a class="cell" href="docs/ErrorsInTheTrace.html"><span class="tag">errors</span><h3>Errors</h3><p>Each outcome in a real chain, VBA's error dialog, and the cases where VBA or Excel handle an error in a way you might not expect.</p><span class="go">Read &rarr;</span></a>
+      <a class="cell" href="docs/VBATracing.html"><span class="tag">internals</span><h3>VBA tracing</h3><p>How the VBA tracer works, built up in layers for a programmer who has not spent time inside interpreters: what is patched, the shadow stack, return values and error outcomes.</p><span class="go">Read &rarr;</span></a>
     </div>
   </div>
 </section>
@@ -493,5 +392,16 @@
     </div>
   </div>
 </footer>
+
+<script>
+  // the menu also closes on Escape, or on a click outside it
+  (function () {
+    var menu = document.querySelector('.menu');
+    document.addEventListener('click', function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && menu.open) { menu.open = false; menu.querySelector('summary').focus(); }
+    });
+  })();
+</script>
 </body>
 </html>
